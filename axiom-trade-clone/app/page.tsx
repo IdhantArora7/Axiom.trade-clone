@@ -1,11 +1,50 @@
-"use client";
+"use client"; // Required for Next.js App Router
 
 import React, { useState, useEffect, useMemo, memo, useContext, createContext } from 'react';
 import { Twitter, Send, Globe, Copy, Filter, Clock, TrendingUp, ChevronDown, Check, DollarSign, Users, Package, Search, Bell, Settings, Moon, Sun, ArrowRight, X } from 'lucide-react';
 
+// --- TYPES ---
+// All type definitions are now at the top for clarity
+
+type Token = {
+  id: string;
+  name: string;
+  ticker: string;
+  iconUrl: string;
+  age: string;
+  socials: { twitter: string; telegram: string; website: string };
+  marketCap: { value: number; changePercent: number; sparklineData: number[] };
+  liquidity: number;
+  volume: number;
+  transactions: { total: number; buys: number; sells: number };
+  tokenInfo: { metricA: number; metricB: number; holderCount: number; teamAllocation: number; status: string };
+};
+
+// Define a type for the dynamic data stored in context
+type DynamicData = {
+  [key: string]: {
+    marketCap: number;
+    liquidity: number;
+    volume: number;
+    sparklineData: number[];
+  };
+};
+
+// Props for the provider
+type TokenPriceProviderProps = {
+  children: React.ReactNode;
+  tokens: Token[] | null;
+};
+
+// Props for the filter hooks
+type Filters = {
+  activeTab: string;
+  timeFilter: string;
+};
+
 // --- MOCK DATA ---
 // This data simulates the structure needed to render the table.
-const MOCK_TOKENS_DATA = [
+const MOCK_TOKENS_DATA: Token[] = [
   {
     id: 'pumpbook',
     name: 'Pumpbook',
@@ -89,15 +128,15 @@ const MOCK_TOKENS_DATA = [
 // --- CONTEXT (Redux/RTK Simulation) ---
 // This context will broadcast real-time price changes to all components.
 
-const TokenPriceContext = createContext({});
+const TokenPriceContext = createContext<DynamicData>({});
 
-function TokenPriceProvider({ children, tokens }) {
-  const [dynamicData, setDynamicData] = useState({});
+function TokenPriceProvider({ children, tokens }: TokenPriceProviderProps) {
+  const [dynamicData, setDynamicData] = useState<DynamicData>({});
 
   // Initialize dynamic data state from tokens
   useEffect(() => {
     if (tokens) {
-      const initialData = {};
+      const initialData: DynamicData = {};
       tokens.forEach(token => {
         initialData[token.id] = {
           marketCap: token.marketCap.value,
@@ -158,8 +197,8 @@ const useTokenPrices = () => useContext(TokenPriceContext);
 // --- HOOKS (React Query Simulation) ---
 // This hook simulates fetching the initial token list.
 
-function useGetTokens(filters) {
-  const [state, setState] = useState({
+function useGetTokens(filters: Filters) {
+  const [state, setState] = useState<{ data: Token[] | null; isLoading: boolean; error: Error | null }>({
     data: null,
     isLoading: true,
     error: null,
@@ -187,7 +226,7 @@ function useGetTokens(filters) {
 /**
  * A custom Tooltip component built with only Tailwind CSS.
  */
-function Tooltip({ children, content }) {
+function Tooltip({ children, content }: { children: React.ReactNode; content: string }) {
   return (
     <div className="relative group">
       {children}
@@ -202,7 +241,7 @@ function Tooltip({ children, content }) {
 /**
  * A simple SVG sparkline chart component.
  */
-function SparklineChart({ data, color = "#10b981" }) {
+function SparklineChart({ data, color = "#10b981" }: { data: number[]; color?: string }) {
   if (!data || data.length < 2) return <div className="h-[30px] w-[100px]" />; // Placeholder
 
   const max = Math.max(...data);
@@ -229,7 +268,7 @@ function SparklineChart({ data, color = "#10b981" }) {
 /**
  * A reusable social icon link with a tooltip.
  */
-function SocialIconLink({ href, icon, tooltip }) {
+function SocialIconLink({ href, icon, tooltip }: { href: string; icon: 'telegram' | 'twitter' | 'website' | 'copy'; tooltip: string }) {
   const icons = {
     telegram: <Send size={14} className="text-gray-400 group-hover:text-white" />,
     twitter: <Twitter size={14} className="text-gray-400 group-hover:text-white" />,
@@ -248,7 +287,7 @@ function SocialIconLink({ href, icon, tooltip }) {
 /**
  * A component for sortable table headers.
  */
-function SortableTableHeader({ children, className = '' }) {
+function SortableTableHeader({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <th className={`px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider ${className}`}>
       <div className="flex items-center gap-1 cursor-pointer group">
@@ -262,7 +301,7 @@ function SortableTableHeader({ children, className = '' }) {
 /**
  * A component to render formatted, flashing prices.
  */
-function FlashingPrice({ value, formatter, isPercent = false }) {
+function FlashingPrice({ value, formatter, isPercent = false }: { value: number; formatter: Intl.NumberFormat; isPercent?: boolean }) {
   const [prevValue, setPrevValue] = useState(value);
   const [flash, setFlash] = useState('');
 
@@ -275,7 +314,7 @@ function FlashingPrice({ value, formatter, isPercent = false }) {
     }
   }, [value, prevValue]);
 
-  const formattedValue = formatter.format(value);
+  const formattedValue = formatter.format(isPercent ? value : value);
   const sign = isPercent ? (value > 0 ? '+' : '') : '';
   const colorClass = isPercent ? (value > 0 ? 'text-green-500' : 'text-red-500') : 'text-gray-200';
   const transitionClass = 'transition-all duration-300';
@@ -283,9 +322,10 @@ function FlashingPrice({ value, formatter, isPercent = false }) {
   // Apply flash or default color
   const displayClass = flash ? `${flash} ${transitionClass}` : `${colorClass} ${transitionClass}`;
   
+  // Note: Formatting for percent is now handled by Intl.NumberFormat
   return (
     <span className={displayClass}>
-      {isPercent ? `${sign}${formattedValue}%` : formattedValue}
+      {isPercent ? `${sign}${formattedValue}` : formattedValue}
     </span>
   );
 }
@@ -293,7 +333,7 @@ function FlashingPrice({ value, formatter, isPercent = false }) {
 // --- MOLECULE COMPONENTS ---
 // Combinations of atoms
 
-function PairInfoCell({ token }) {
+function PairInfoCell({ token }: { token: Token }) {
   return (
     <div className="flex items-center gap-3">
       <img src={token.iconUrl} alt={token.name} className="w-8 h-8 rounded-full" />
@@ -316,7 +356,7 @@ function PairInfoCell({ token }) {
   );
 }
 
-function MarketCapCell({ token }) {
+function MarketCapCell({ token }: { token: Token }) {
   const dynamicData = useTokenPrices();
   const currentData = dynamicData[token.id];
 
@@ -343,7 +383,7 @@ function MarketCapCell({ token }) {
   );
 }
 
-function TokenInfoCell({ info }) {
+function TokenInfoCell({ info }: { info: Token['tokenInfo'] }) {
   const percentFormatter = new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   
   return (
@@ -363,7 +403,7 @@ function TokenInfoCell({ info }) {
   );
 }
 
-function TableFilters({ filters, setFilters }) {
+function TableFilters({ filters, setFilters }: { filters: Filters; setFilters: React.Dispatch<React.SetStateAction<Filters>> }) {
   const TABS = ['Trending', 'Surge', 'DEX Screener', 'Pump Live'];
   const TIMES = ['1m', '5m', '30m', '1h'];
 
@@ -408,7 +448,7 @@ function TableFilters({ filters, setFilters }) {
 // --- ORGANISM COMPONENTS ---
 // Large layout sections
 
-const TokenTableRow = memo(({ token }) => {
+const TokenTableRow = memo(({ token }: { token: Token }) => {
   const dynamicData = useTokenPrices();
   const currentData = dynamicData[token.id];
   
@@ -451,9 +491,10 @@ const TokenTableRow = memo(({ token }) => {
     </tr>
   );
 });
+TokenTableRow.displayName = 'TokenTableRow'; // For React DevTools
 
-function TokenTable({ tokens, isLoading }) {
-  if (isLoading) {
+function TokenTable({ tokens, isLoading }: { tokens: Token[] | null; isLoading: boolean }) {
+  if (isLoading || !tokens) { // Show skeleton if loading or if tokens are null
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full">
@@ -504,7 +545,7 @@ function TokenTable({ tokens, isLoading }) {
  * A single skeleton row for the loading state.
  */
 function SkeletonRow() {
-  const Skeleton = ({ className = '' }) => (
+  const Skeleton = ({ className = '' }: { className?: string }) => (
     <div className={`bg-gray-800 animate-pulse rounded ${className}`} />
   );
 
@@ -532,7 +573,7 @@ function SkeletonRow() {
       <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
       <td className="px-4 py-3"><Skeleton className="h-4 w-12" /></td>
       <td className="px-4 py-3"><Skeleton className="h-12 w-full" /></td>
-      <td className="px-4 py-3"><Skeleton className="h-8 w-16 rounded-lg" /></td>
+      <td className="px-4 py-3"><Skeleton className="h-8 w-16 rounded-lg inline-block" /></td>
     </tr>
   );
 }
@@ -541,7 +582,7 @@ function SkeletonRow() {
  * Main application component.
  */
 export default function App() {
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     activeTab: 'surge',
     timeFilter: '5m',
   });
@@ -552,36 +593,47 @@ export default function App() {
     <TokenPriceProvider tokens={tokens}>
       <div className="min-h-screen bg-gray-950 text-gray-300 font-sans p-4 sm:p-6">
         {/* Header - A simplified replica */}
-        <header className="flex items-center justify-between pb-4 border-b border-gray-800">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold text-white">AXIOM <span className="text-blue-500">Pro</span></h1>
-            <nav className="hidden md:flex items-center gap-3">
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Discover</a>
-              <a href="#" className="text-sm text-white font-medium">Pulse</a>
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Trackers</a>
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Perpetuals</a>
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Yield</a>
-              <a href="#" className="text-sm text-gray-400 hover:text-white">Portfolio</a>
+        <header className="flex flex-col md:flex-row items-center justify-between gap-4 pb-4 border-b border-gray-800">
+          
+          {/* Left Side: Logo + Nav */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            <h1 className="text-xl font-bold text-white flex-shrink-0">
+              AXIOM <span className="text-blue-500">Pro</span>
+            </h1>
+            {/* Nav scrolls horizontally on small screens */}
+            <nav className="flex items-center gap-3 pb-2 sm:pb-0 overflow-x-auto">
+              <a href="#" className="text-sm text-gray-400 hover:text-white whitespace-nowrap">Discover</a>
+              <a href="#" className="text-sm text-white font-medium whitespace-nowrap">Pulse</a>
+              <a href="#" className="text-sm text-gray-400 hover:text-white whitespace-nowrap">Trackers</a>
+              <a href="#" className="text-sm text-gray-400 hover:text-white whitespace-nowrap">Perpetuals</a>
+              <a href="#" className="text-sm text-gray-400 hover:text-white whitespace-nowrap">Yield</a>
+              <a href="#" className="text-sm text-gray-400 hover:text-white whitespace-nowrap">Portfolio</a>
             </nav>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          
+          {/* Right Side: Search + Controls */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            {/* Search input is full-width on mobile (w-full) and fixed on larger screens (sm:w-48) */}
+            <div className="relative w-full sm:w-auto">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
               <input 
                 type="text" 
                 placeholder="Search by token or CA..."
-                className="bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-4 py-1.5 text-sm w-48 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-4 py-1.5 text-sm w-full sm:w-48 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <button className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white">
-              Deposit
-            </button>
-            <button className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700">
-              <Bell size={18} />
-            </button>
-            <button className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700">
-              <Sun size={18} />
-            </button>
+            {/* Button group stretches on mobile (w-full) */}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-stretch sm:justify-start">
+              <button className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+                Deposit
+              </button>
+              <button className="flex-none p-2 rounded-lg bg-gray-800 hover:bg-gray-700">
+                <Bell size={18} />
+              </button>
+              <button className="flex-none p-2 rounded-lg bg-gray-800 hover:bg-gray-700">
+                <Sun size={18} />
+              </button>
+            </div>
           </div>
         </header>
 
